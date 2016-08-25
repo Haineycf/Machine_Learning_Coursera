@@ -1,0 +1,117 @@
+---
+title: "Motion_Detection"
+author: "CF Hainey"
+date: "August 24, 2016"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: yes
+---
+
+
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=TRUE}
+#load data with rows that have information
+library(data.table) # allows you to brind in specific columns
+dat <- read.csv("./GitHub/Machine_Learning/dat.csv") 
+
+#change names to dummy variables and make sure numeric
+dat$user_name[dat$user_name == 'carlitos'] <- 1
+dat$user_name[dat$user_name == 'pedro'] <- 2
+dat$user_name[dat$user_name == 'adelmo'] <- 3
+dat$user_name[dat$user_name == 'charles'] <- 4
+dat$user_name[dat$user_name == 'eurico'] <- 5
+dat$user_name[dat$user_name == 'jeremy'] <- 6
+dat$user_name <-as.numeric(dat$user_name)
+
+#set up training and testing sets & set for correlation
+library(ggplot2); library(caret);
+# Create a building data set and validation set
+inBuild <- createDataPartition(y=dat$classe,p=0.7, list=FALSE)
+validation <- dat[-inBuild,]; buildData <- dat[inBuild,]
+inTrain <- createDataPartition(y=buildData$classe,p=0.7, list=FALSE)
+training <- buildData[inTrain,]; testing <- buildData[-inTrain,]
+train1 <- training
+pca_set<-train1[,classe:=NULL]
+
+#run pca
+library("factoextra")
+# Extract active variables/individuals for PCA
+#decathlon2.active <- pca_set
+
+library("FactoMineR")
+#res.pca <- PCA(decathlon2.active, graph = FALSE)
+res.pca <- PCA(pca_set, graph = FALSE)
+
+#print(res.pca)
+
+#eigenvalues <- res.pca$eig
+#head(eigenvalues[, 1:2])
+
+fviz_screeplot(res.pca, ncp=10)
+
+# Coordinates of variables *** Lists variables you want to keep
+head(res.pca$var$coord)
+
+#draws a pca diagram of all input phenotype
+fviz_pca_var(res.pca)
+
+library(data.table) # allows you to brind in specific columns
+dat <- fread("./ML_data/training1.csv", select = c( "user_name","num_window","roll_belt","pitch_belt","yaw_belt","total_accel_belt",
+              "gyros_belt_x","classe" ))
+test2 <- fread("./ML_data/testing1.csv", select = c( "user_name","num_window","roll_belt","pitch_belt","yaw_belt","total_accel_belt", "gyros_belt_x","classe"))
+#change names to dummy variables
+dat$user_name[dat$user_name == 'carlitos'] <- 1
+dat$user_name[dat$user_name == 'pedro'] <- 2
+dat$user_name[dat$user_name == 'adelmo'] <- 3
+dat$user_name[dat$user_name == 'charles'] <- 4
+dat$user_name[dat$user_name == 'eurico'] <- 5
+dat$user_name[dat$user_name == 'jeremy'] <- 6
+test2$user_name <-as.numeric(test2$user_name)
+test2$user_name[test2$user_name == 'carlitos'] <- 1
+test2$user_name[test2$user_name == 'pedro'] <- 2
+test2$user_name[test2$user_name == 'adelmo'] <- 3
+test2$user_name[test2$user_name == 'charles'] <- 4
+test2$user_name[test2$user_name == 'eurico'] <- 5
+test2$user_name[test2$user_name == 'jeremy'] <- 6
+test2$user_name <-as.numeric(test2$user_name)
+test2$num_window <-as.numeric(test2$num_window)
+test2$total_accel_belt <-as.numeric(test2$total_accel_belt)
+
+dat$classe[dat$classe == 'A'] <- 1
+dat$classe[dat$classe == 'B'] <- 2
+dat$classe[dat$classe == 'C'] <- 3
+dat$classe[dat$classe == 'D'] <- 4
+dat$classe[dat$classe == 'E'] <- 4
+dat$classe[dat$classe == 'F'] <- 6
+
+library(ggplot2); library(caret);
+# Create a building data set and validation set
+inBuild <- createDataPartition(y=dat$classe,
+                               p=0.7, list=FALSE)
+validation <- dat[-inBuild,]; buildData <- dat[inBuild,]
+
+inTrain <- createDataPartition(y=buildData$classe, p=0.7, list=FALSE)
+training <- buildData[inTrain,]; testing <- buildData[-inTrain,]
+training$classe <-as.factor(training$classe)
+training$num_window <-as.numeric(training$num_window)
+training$total_accel_belt <-as.numeric(training$total_accel_belt)
+
+head(training)
+class(training$classe)
+library(randomForest)
+modrf = randomForest(factor(classe) ~ ., data=training, na.action=na.omit,importance=TRUE)
+modrf
+
+importance(modrf, type = 2)
+forest.pred <- predict(modrf, testing)
+forest.per <- table(testing$classe, forest.pred, dnn=c("Actual", "Predicted"))
+forest.per
+forest_val <-predict(modrf, test2)
+forest_val
+class(test2$gyros_belt_x)
